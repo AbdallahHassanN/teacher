@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 void main() {
@@ -39,24 +40,28 @@ class _WebViewPageState extends State<WebViewPage> {
   @override
   void initState() {
     super.initState();
+    _requestPermissions(); // <-- request on app open
 
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageStarted: (_) {
-            setState(() => _loading = true);
-          },
-          onPageFinished: (_) {
-            setState(() => _loading = false);
-          },
-          onWebResourceError: (error) {
-            _tryNextUrl();
-          },
+          onPageStarted: (_) => setState(() => _loading = true),
+          onPageFinished: (_) => setState(() => _loading = false),
+          onWebResourceError: (_) => _tryNextUrl(),
         ),
       );
 
     _loadCurrentUrl();
+  }
+
+  Future<void> _requestPermissions() async {
+    await [
+      Permission.camera,
+      Permission.storage,
+      Permission.photos,        // Android 13+ images
+      Permission.videos,        // Android 13+ videos
+    ].request();
   }
 
   void _loadCurrentUrl() {
@@ -79,28 +84,19 @@ class _WebViewPageState extends State<WebViewPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Dashboard"),
-      ),
+      appBar: AppBar(title: const Text("Dashboard")),
       body: Stack(
         children: [
-          if (!_allFailed)
-            WebViewWidget(controller: _controller),
-
+          if (!_allFailed) WebViewWidget(controller: _controller),
           if (_loading && !_allFailed)
             const Center(child: CircularProgressIndicator()),
-
           if (_allFailed)
             const Center(
-              child: Text(
-                "Unable to load dashboard",
-                style: TextStyle(fontSize: 16),
-              ),
+              child: Text("Unable to load dashboard",
+                  style: TextStyle(fontSize: 16)),
             ),
         ],
       ),
     );
   }
 }
-
-
